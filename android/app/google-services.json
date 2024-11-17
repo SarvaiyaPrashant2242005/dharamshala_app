@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "635337142",
+    "project_id": "dharamshala-28df7",
+    "storage_bucket": "dharamshala-28df7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:635337142:android:9d118c27feee431767e917",
+        "android_client_info": {
+          "package_name": "com.example.dharamshala_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAhCNbVSq9ffS51oJ0LyzS1xWk3Dlm0ub4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
