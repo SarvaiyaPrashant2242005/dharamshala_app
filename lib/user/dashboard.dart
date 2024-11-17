@@ -203,15 +203,27 @@ class DharamshalaCard extends StatelessWidget {
                   onPressed: onLike,
                 ),
               ),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  imageUrl,
-                  width: double.infinity,
-                  height: 120,
-                  fit: BoxFit.cover,
-                ),
-              ),
+              // Display image if available, otherwise show "No Image"
+              imageUrl == 'https://via.placeholder.com/150'
+                  ? Container(
+                      width: double.infinity,
+                      height: 120,
+                      color: Colors.blue,  // Background color for "No Image"
+                      alignment: Alignment.center,
+                      child: Text(
+                        'No Image',
+                        style: TextStyle(color: const Color.fromARGB(255, 0, 0, 0), fontWeight: FontWeight.bold),
+                      ),
+                    )
+                  : ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        imageUrl,
+                        width: double.infinity,
+                        height: 120,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
               SizedBox(height: 8),
               Text(
                 name,

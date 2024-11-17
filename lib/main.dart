@@ -1,6 +1,6 @@
 import 'package:dharamshala_app/firebase_options.dart';
-import 'package:dharamshala_app/login/login_screen.dart';
 import 'package:dharamshala_app/splacescreen.dart';
+import 'package:dharamshala_app/user/dashboard.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
@@ -26,7 +26,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       debugShowCheckedModeBanner: false,
-      home: SplashScreen(),
+      home: UserDashboard(),
     );
   }
 }

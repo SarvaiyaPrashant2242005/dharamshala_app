@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:dharamshala_app/user/booking_form.dart'; // Make sure to import the BookingForm screen
 
 class RoomListScreen extends StatefulWidget {
   final String dharamshalaId;
@@ -13,6 +14,7 @@ class RoomListScreen extends StatefulWidget {
 class _RoomListScreenState extends State<RoomListScreen> {
   List<Map<String, dynamic>> rooms = [];
   bool isLoading = true;
+  List<int> selectedRooms = [];  // Track selected rooms
 
   @override
   void initState() {
@@ -35,8 +37,9 @@ class _RoomListScreenState extends State<RoomListScreen> {
             'name': data?['name'] ?? 'Unknown Room',
             'capacity': data?['capacity'] ?? 0,
             'price': data?['price']?.toString() ?? 'Not Available',
-            'image': data?['image'] ?? '', // Handle null images
+            'image': data?['image'] ?? '',
             'description': data?['description'] ?? 'No description',
+            'id': doc.id,  // Store the document ID to track selections
           };
         }).toList();
 
@@ -58,12 +61,22 @@ class _RoomListScreenState extends State<RoomListScreen> {
     });
   }
 
+  void _onRoomSelected(bool? value, int index) {
+    setState(() {
+      if (value == true) {
+        selectedRooms.add(index);  // Add to selected rooms
+      } else {
+        selectedRooms.remove(index);  // Remove from selected rooms
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Rooms"),
-        backgroundColor: Colors.purple,
+        backgroundColor: Colors.blue,
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -74,17 +87,46 @@ class _RoomListScreenState extends State<RoomListScreen> {
                     style: TextStyle(fontSize: 18, color: Colors.grey),
                   ),
                 )
-              : ListView.builder(
-                  itemCount: rooms.length,
-                  itemBuilder: (context, index) {
-                    return RoomCard(
-                      name: rooms[index]['name'],
-                      capacity: rooms[index]['capacity'],
-                      price: rooms[index]['price'],
-                      imageUrl: rooms[index]['image'],
-                      description: rooms[index]['description'],
-                    );
-                  },
+              : Column(
+                  children: [
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: rooms.length,
+                        itemBuilder: (context, index) {
+                          return RoomCard(
+                            name: rooms[index]['name'],
+                            capacity: rooms[index]['capacity'],
+                            price: rooms[index]['price'],
+                            imageUrl: rooms[index]['image'],
+                            description: rooms[index]['description'],
+                            isSelected: selectedRooms.contains(index),
+                            onSelected: (value) => _onRoomSelected(value, index),
+                          );
+                        },
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: ElevatedButton(
+                        onPressed: selectedRooms.isEmpty
+                            ? null  // Disable button if no room is selected
+                            : () {
+                                // Navigate to booking form with selected rooms
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => BookingForm(
+                                      selectedRooms: selectedRooms
+                                          .map((index) => rooms[index])
+                                          .toList(),
+                                    ),
+                                  ),
+                                );
+                              },
+                        child: const Text("Continue"),
+                      ),
+                    ),
+                  ],
                 ),
     );
   }
@@ -96,6 +138,8 @@ class RoomCard extends StatelessWidget {
   final String price;
   final String imageUrl;
   final String description;
+  final bool isSelected;
+  final Function(bool?) onSelected;
 
   const RoomCard({
     Key? key,
@@ -104,62 +148,57 @@ class RoomCard extends StatelessWidget {
     required this.price,
     required this.imageUrl,
     required this.description,
+    required this.isSelected,
+    required this.onSelected,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.all(8),
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (imageUrl.isNotEmpty)
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
-              child: Image.network(
-                imageUrl,
-                width: double.infinity,
-                height: 150,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => const Icon(
-                  Icons.broken_image,
-                  size: 150,
-                  color: Colors.grey,
-                ),
+    return GestureDetector(
+      onTap: () {
+        // Toggle the checkbox when the card is tapped
+        onSelected(!isSelected);
+      },
+      child: Card(
+        margin: const EdgeInsets.all(8.0),
+        child: Padding(
+          padding: const EdgeInsets.all(10.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,  // Align text to the left
+            children: [
+              // Show "No Image" if image URL is empty or missing
+              imageUrl.isEmpty || imageUrl == 'https://via.placeholder.com/150'
+                  ? Container(
+                      width: double.infinity,
+                      height: 120,
+                      color: Colors.blue,  // Background color for "No Image"
+                      alignment: Alignment.center,
+                      child: Text(
+                        'No Image',
+                        style: TextStyle(color: const Color.fromARGB(255, 0, 0, 0), fontWeight: FontWeight.bold),
+                      ),
+                    )
+                  : Image.network(imageUrl),
+              SizedBox(height: 10),
+              // Align the room details to the left
+              Text(name, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              SizedBox(height: 5),
+              Text('Capacity: $capacity'),
+              SizedBox(height: 5),
+              Text('Price: $price'),
+              SizedBox(height: 5),
+              Text(description),
+              SizedBox(height: 10),
+              // Checkbox aligned to the left
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,  // Remove padding for left alignment
+                title: const Text('Select Room'),
+                value: isSelected,
+                onChanged: onSelected,
               ),
-            ),
-          Padding(
-            padding: const EdgeInsets.all(10.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  "Capacity: $capacity persons",
-                  style: const TextStyle(color: Colors.grey),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  "Price: $price",
-                  style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  description,
-                  style: const TextStyle(color: Colors.black),
-                ),
-              ],
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
