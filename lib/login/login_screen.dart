@@ -347,7 +347,6 @@ class _LoginSignUpScreenState extends State<LoginSignUpScreen> {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
                 builder: (context) => UserDashboard(
-                
                 ),
               ),
             );
