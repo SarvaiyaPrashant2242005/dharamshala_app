@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:dharamshala_app/user/roomlist.dart'; // Make sure to import RoomListScreen
+import 'package:dharamshala_app/user/favourites_page.dart'; // Import the FavouritesPage screen
 
 class UserDashboard extends StatefulWidget {
   @override
@@ -9,6 +10,9 @@ class UserDashboard extends StatefulWidget {
 
 class _UserDashboardState extends State<UserDashboard> {
   List<Map<String, dynamic>> dharamshalas = [];
+  List<Map<String, dynamic>> favouriteDharamshalas = []; // List to hold the favourite dharamshalas
+
+  int _selectedIndex = 0; // Track bottom nav index
 
   @override
   void initState() {
@@ -44,6 +48,30 @@ class _UserDashboardState extends State<UserDashboard> {
       print("Error fetching dharamshalas: $e");
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error fetching data: $e")));
     }
+  }
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+
+    if (_selectedIndex == 1) {
+      // Navigate to the FavouritesPage when the heart icon is tapped
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => FavouritesPage(favouriteDharamshalas: favouriteDharamshalas)),
+      );
+    }
+  }
+
+  void _toggleFavourite(Map<String, dynamic> dharamshala) {
+    setState(() {
+      if (favouriteDharamshalas.contains(dharamshala)) {
+        favouriteDharamshalas.remove(dharamshala); // Remove if already in favourites
+      } else {
+        favouriteDharamshalas.add(dharamshala); // Add to favourites
+      }
+    });
   }
 
   @override
@@ -100,6 +128,8 @@ class _UserDashboardState extends State<UserDashboard> {
                     address: dharamshalas[index]['address'],
                     imageUrl: dharamshalas[index]['imageUrl'],
                     dharamshalaId: dharamshalas[index]['dharamshalaId'],
+                    isLiked: favouriteDharamshalas.contains(dharamshalas[index]),
+                    onLike: () => _toggleFavourite(dharamshalas[index]),
                   );
                 },
               ),
@@ -108,8 +138,10 @@ class _UserDashboardState extends State<UserDashboard> {
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
         selectedItemColor: Colors.blue,
         unselectedItemColor: Colors.grey,
+        onTap: _onItemTapped,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
           BottomNavigationBarItem(icon: Icon(Icons.favorite), label: "Favorites"),
@@ -126,12 +158,16 @@ class DharamshalaCard extends StatelessWidget {
   final String address;
   final String imageUrl;
   final String dharamshalaId;
+  final bool isLiked;
+  final VoidCallback onLike;
 
   DharamshalaCard({
     required this.name,
     required this.address,
     required this.imageUrl,
     required this.dharamshalaId,
+    required this.isLiked,
+    required this.onLike,
   });
 
   @override
@@ -156,6 +192,17 @@ class DharamshalaCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Heart icon at the top left corner
+              Align(
+                alignment: Alignment.topLeft,
+                child: IconButton(
+                  icon: Icon(
+                    isLiked ? Icons.favorite : Icons.favorite_border,
+                    color: isLiked ? Colors.red : Colors.grey,
+                  ),
+                  onPressed: onLike,
+                ),
+              ),
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: Image.network(
