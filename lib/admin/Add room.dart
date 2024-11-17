@@ -1,13 +1,15 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_storage/firebase_storage.dart'; // For storing image in Firebase Storage
-import 'package:firebase_auth/firebase_auth.dart'; // For accessing current user
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class AddRoomScreen extends StatefulWidget {
   const AddRoomScreen({super.key});
 
-  @override 
+  @override
   State<AddRoomScreen> createState() => _AddRoomScreenState();
 }
 
@@ -27,7 +29,36 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
     super.dispose();
   }
 
-  // Function to upload image to Firebase Storage
+  @override
+  void initState() {
+    super.initState();
+    _requestPermissions();
+  }
+
+  Future<void> _requestPermissions() async {
+    await [Permission.storage].request();
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final ImagePicker _picker = ImagePicker();
+      final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+      if (pickedFile != null) {
+        setState(() {
+          _roomImage = File(pickedFile.path);
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No image selected.')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking image: $e')),
+      );
+    }
+  }
+
   Future<String?> _uploadImageToFirebase(File image) async {
     try {
       final storageReference = FirebaseStorage.instance
@@ -35,8 +66,7 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
           .child('room_images/${DateTime.now().millisecondsSinceEpoch}');
       final uploadTask = storageReference.putFile(image);
       final snapshot = await uploadTask.whenComplete(() => {});
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-      return downloadUrl;
+      return await snapshot.ref.getDownloadURL();
     } catch (e) {
       print("Error uploading image: $e");
       return null;
@@ -49,60 +79,53 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
         _roomPriceController.text.isEmpty ||
         _roomDescriptionController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all fields!')) ,
+        const SnackBar(content: Text('Please fill all fields!')),
       );
       return;
     }
 
-    // Parse capacity and price values
     int? capacity = int.tryParse(_roomCapacityController.text);
     double? price = double.tryParse(_roomPriceController.text);
 
     if (capacity == null || price == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid capacity or price!')) ,
+        const SnackBar(content: Text('Invalid capacity or price!')),
       );
       return;
     }
 
     String? imageUrl;
     if (_roomImage != null) {
-      // If there's an image, upload it to Firebase Storage
       imageUrl = await _uploadImageToFirebase(_roomImage!);
     }
 
-    // Get the current logged-in user's ID (which can be used as the `dharamshala_id`)
-    String? ownerId = FirebaseAuth.instance.currentUser?.uid; // This will be your `dharamshala_id`
+    String? ownerId = FirebaseAuth.instance.currentUser?.uid;
 
     if (ownerId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User not logged in!')) ,
+        const SnackBar(content: Text('User not logged in!')),
       );
       return;
     }
 
-    // Creating a new room object
     final newRoom = {
       'name': _roomNameController.text,
       'capacity': capacity,
       'price': price,
       'description': _roomDescriptionController.text,
-      'image': imageUrl, // Add image URL if available
-      'dharamshala_id': ownerId, // Add the owner's ID as `dharamshala_id`
+      'image': imageUrl,
+      'dharamshala_id': ownerId,
     };
 
     try {
-      // Add the new room to Firestore under `roomdetails` collection
       await FirebaseFirestore.instance.collection('roomdetails').add(newRoom);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Room added successfully!')) ,
+        const SnackBar(content: Text('Room added successfully!')),
       );
-
-      // Go back to previous screen
       Navigator.pop(context);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')) ,
+        SnackBar(content: Text('Error: $e')),
       );
     }
   }
@@ -112,7 +135,7 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Add Room'),
-        backgroundColor: Colors.purple,
+        backgroundColor: Color.fromRGBO(33, 150, 243, 1),
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -120,7 +143,6 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Room Name
               TextField(
                 controller: _roomNameController,
                 decoration: InputDecoration(
@@ -131,8 +153,6 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-
-              // Room Capacity
               TextField(
                 controller: _roomCapacityController,
                 decoration: InputDecoration(
@@ -144,8 +164,6 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 16),
-
-              // Room Price
               TextField(
                 controller: _roomPriceController,
                 decoration: InputDecoration(
@@ -157,8 +175,6 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 16),
-
-              // Room Description
               TextField(
                 controller: _roomDescriptionController,
                 maxLines: 3,
@@ -170,12 +186,37 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-
-              // Add Room Button
+              Center(
+                child: ElevatedButton(
+                  onPressed: _pickImage,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color.fromRGBO(33, 150, 243, 1),
+                    minimumSize: const Size(200, 50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                  ),
+                  child: const Text(
+                    'Select Image',
+                    style: TextStyle(fontSize: 16, color: Colors.white),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (_roomImage != null)
+                Center(
+                  child: Image.file(
+                    _roomImage!,
+                    height: 150,
+                    width: 150,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _addRoomToFirestore,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.purple,
+                  backgroundColor: Color.fromRGBO(33, 150, 243, 1),
                   minimumSize: const Size(double.infinity, 50),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(25),
@@ -183,10 +224,7 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
                 ),
                 child: const Text(
                   'Add Room',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white,
-                  ),
+                  style: TextStyle(fontSize: 16, color: Colors.white),
                 ),
               ),
             ],
