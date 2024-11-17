@@ -25,25 +25,6 @@ class UserDashboard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      icon: Icon(Icons.calendar_today, size: 16),
-                      label: Text("24 OCT - 26 OCT"),
-                      onPressed: () {},
-                    ),
-                  ),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      icon: Icon(Icons.person, size: 16),
-                      label: Text("3 guests"),
-                      onPressed: () {},
-                    ),
-                  ),
-                ],
-              ),
               SizedBox(height: 20),
               TextField(
                 decoration: InputDecoration(

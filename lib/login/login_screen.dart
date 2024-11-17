@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dharamshala_app/user/dashboard.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../admin/Dashboard.dart';
@@ -289,81 +290,123 @@ class _LoginSignUpScreenState extends State<LoginSignUpScreen> {
     );
   }
 
-  Future<void> _handleSubmit() async {
-    if (!_formKey.currentState!.validate()) return;
+ Future<void> _handleSubmit() async {
+  if (!_formKey.currentState!.validate()) return;
 
-    if (!showLoginScreen &&
-        passwordController.text != confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Passwords do not match')),
+  if (!showLoginScreen &&
+      passwordController.text != confirmPasswordController.text) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Passwords do not match')),
+    );
+    return;
+  }
+
+  try {
+    if (showLoginScreen) {
+      // Login Logic
+      UserCredential userCredential =
+          await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
       );
-      return;
-    }
 
-    try {
-      if (showLoginScreen) {
-        UserCredential userCredential =
-            await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: emailController.text.trim(),
-          password: passwordController.text.trim(),
-        );
+      String userId = userCredential.user!.uid;
 
-        DocumentSnapshot userDoc = await FirebaseFirestore.instance
-            .collection('owner')
-            .doc(userCredential.user!.uid)
+      DocumentSnapshot<Map<String, dynamic>>? userDoc;
+
+      // Check in 'owner' collection first
+      userDoc = await FirebaseFirestore.instance
+          .collection('owner')
+          .doc(userId)
+          .get();
+
+      if (!userDoc.exists) {
+        // Check in 'users' collection
+        userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
             .get();
+      }
 
-        if (userDoc.exists) {
-          String role = userDoc['role'];
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => DashboardScreen(
-                userRole: role,
-                userData: userDoc.data() as Map<String, dynamic>,
+      if (userDoc.exists) {
+        final userData = userDoc.data()!;
+        final String role = userData['role'];
+
+        // Navigate to the appropriate dashboard based on role
+        if (context.mounted) {
+          if (role == 'Owner') {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => DashboardScreen(
+                  userRole: role,
+                  userData: userData,
+                ),
               ),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('User data not found')),
-          );
+            );
+          } else if (role == 'User') {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => UserDashboard(
+                
+                ),
+              ),
+            );
+          }
         }
       } else {
-        UserCredential userCredential =
-            await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: emailController.text.trim(),
-          password: passwordController.text.trim(),
-        );
-
-        final userData = {
-          'email': emailController.text.trim(),
-          'username': usernameController.text.trim(),
-          'mobile': mobileController.text.trim(),
-          'role': selectedRole,
-        };
-
-        if (selectedRole == 'Owner') {
-          userData['dharamshalaName'] = dharamshalaNameController.text.trim();
-          userData['address'] = addressController.text.trim();
+        // User not found in either collection
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('User data not found.')),
+          );
         }
+      }
+    } else {
+      // Registration Logic
+      UserCredential userCredential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
 
-        await FirebaseFirestore.instance
-            .collection('owner')
-            .doc(userCredential.user!.uid)
-            .set(userData);
+      String userId = userCredential.user!.uid;
 
+      final Map<String, dynamic> userData = {
+        'email': emailController.text.trim(),
+        'username': usernameController.text.trim(),
+        'mobile': mobileController.text.trim(),
+        'role': selectedRole,
+      };
+
+      if (selectedRole == 'Owner') {
+        userData['dharamshalaName'] = dharamshalaNameController.text.trim();
+        userData['address'] = addressController.text.trim();
+
+        // Save to 'owner' collection
+        await FirebaseFirestore.instance.collection('owner').doc(userId).set(userData);
+      } else if (selectedRole == 'User') {
+        // Save to 'users' collection
+        await FirebaseFirestore.instance.collection('users').doc(userId).set(userData);
+      } else {
+        throw Exception('Invalid role selected.');
+      }
+
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Registration successful!')),
         );
-
-        toggleScreen();
+        toggleScreen(); // Switch back to login screen
       }
-    } catch (e) {
+    }
+  } catch (e) {
+    if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: ${e.toString()}')),
       );
     }
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
