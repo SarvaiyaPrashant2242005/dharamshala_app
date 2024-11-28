@@ -562,4 +562,3 @@ class _LoginSignUpScreenState extends State<LoginSignUpScreen> {
     );
   }
 }
-

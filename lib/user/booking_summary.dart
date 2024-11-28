@@ -1,5 +1,7 @@
-import 'package:dharamshala_app/user/payment.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:dharamshala_app/user/payment.dart'; // Ensure this path is correct
 
 class BookingSummary extends StatelessWidget {
   final List<Map<String, dynamic>> selectedRooms;
@@ -17,9 +19,27 @@ class BookingSummary extends StatelessWidget {
     required this.checkOut,
   }) : super(key: key);
 
+  Future<Map<String, dynamic>> _getUserDetails() async {
+    try {
+      final userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+      if (userId.isEmpty) throw Exception('User is not authenticated');
+
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      if (!userDoc.exists) throw Exception("User document does not exist");
+
+      return {
+        'userId': userId,
+        'userName': userDoc['username'] ?? 'Unknown',
+        'userEmail': userDoc['email'] ?? 'Unknown',
+        'userPhone': userDoc['mobile'] ?? 'Unknown',
+      };
+    } catch (e) {
+      throw Exception('Error fetching user details: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Calculate the total price
     final double totalPrice = selectedRooms.fold(
       0.0,
       (sum, room) => sum + double.parse(room['price']),
@@ -58,7 +78,7 @@ class BookingSummary extends StatelessWidget {
                     margin: const EdgeInsets.symmetric(vertical: 5),
                     child: ListTile(
                       title: Text(room['name']),
-                      subtitle: Text('Price: ${room['price']}'),
+                      subtitle: Text('Price: ₹${room['price']}'),
                       trailing: Text('Capacity: ${room['capacity']}'),
                     ),
                   );
@@ -73,27 +93,46 @@ class BookingSummary extends StatelessWidget {
             const SizedBox(height: 20),
             Center(
               child: ElevatedButton(
-  onPressed: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CustomPaymentPage(
-          amount: totalPrice,
-          bookingDetails: 'Booking from $checkIn to $checkOut for $guests guests',
-        ),
-      ),
-    ).then((result) {
-      if (result == 'success') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Booking Confirmed!')),
-        );
-        // Handle post-payment actions here, like updating Firestore or navigating back
-      }
-    });
-  },
-  child: const Text('Pay Now'),
-),
+                onPressed: () async {
+                  if (selectedRooms.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('No rooms selected!')),
+                    );
+                    return;
+                  }
 
+                  try {
+                    final userDetails = await _getUserDetails();
+
+                    // Navigate to the payment page
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CustomPaymentPage(
+                          amount: totalPrice,
+                          bookingDetails: {
+                            'checkInDate': checkIn,
+                            'checkOutDate': checkOut,
+                            'selectedRooms': selectedRooms.map((room) => room['id']).toList(),
+                            ...userDetails, // Add user details
+                          },
+                        ),
+                      ),
+                    ).then((result) {
+                      if (result == 'success') {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Booking Confirmed!')),
+                        );
+                      }
+                    });
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to process payment: $e')),
+                    );
+                  }
+                },
+                child: const Text('Pay Now'),
+              ),
             ),
           ],
         ),
