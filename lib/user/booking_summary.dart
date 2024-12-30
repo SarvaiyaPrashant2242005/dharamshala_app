@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:dharamshala_app/user/payment.dart'; // Ensure this path is correct
+import 'package:dharamshala_app/user/payment.dart'; 
 
 class BookingSummary extends StatelessWidget {
   final List<Map<String, dynamic>> selectedRooms;
@@ -108,7 +108,7 @@ class BookingSummary extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => CustomPaymentPage(
+                        builder: (context) => RazorpayScreen(
                           amount: totalPrice,
                           bookingDetails: {
                             'checkInDate': checkIn,
